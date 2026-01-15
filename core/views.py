@@ -1,8 +1,15 @@
+import os
 import base64
 import requests
 import json
 from django.shortcuts import render
 from django.conf import settings
+
+try:
+    from .secrets_prompts import SYSTEM_PROMPT
+except ImportError:
+    SYSTEM_PROMPT = "Error: El prompt no se encuentra configurado."
+
 
 def index(request):
     json_result = None
@@ -21,7 +28,7 @@ def index(request):
             # Si Perplexity usa endpoints compatibles con OpenAI, el formato es el siguiente:
             
             headers = {
-                "Authorization": os.getenv('perplexity_secret_key'), 
+                "Authorization": os.getenv('perplexity_api_key'), 
                 "Content-Type": "application/json"
             }
 
