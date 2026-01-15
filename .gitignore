@@ -1,3 +1,5 @@
 # Dependencias (nunca se suben porque son muy pesadas)
 db.sqlite3
 venv/
+.env
+**/secrets_prompts.py

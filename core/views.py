@@ -515,7 +515,7 @@ def index(request):
             # Si Perplexity usa endpoints compatibles con OpenAI, el formato es el siguiente:
             
             headers = {
-                "Authorization": "Bearer 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", # Pon tu API Key aquí o en settings
+                "Authorization": os.getenv('perplexity_secret_key'), 
                 "Content-Type": "application/json"
             }
 
