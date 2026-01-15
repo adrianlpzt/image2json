@@ -1,0 +1,3 @@
+# Dependencias (nunca se suben porque son muy pesadas)
+db.sqlite3
+venv/

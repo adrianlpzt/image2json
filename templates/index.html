@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Vision Analyst</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/theme/dracula.min.css">
+
+    <style>
+        /* --- ESTILOS GENERALES Y FONDO --- */
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            min-height: 100vh;
+            color: #fff;
+            position: relative;
+            background-color: #0f0c29; /* Fondo base oscuro */
+            overflow-x: hidden;
+        }
+
+        /* Fondo Blur/Difuminado Animado */
+        body::before {
+            content: "";
+            position: absolute;
+            top: -10%; left: -10%;
+            width: 120%; height: 120%;
+            background: radial-gradient(circle at 20% 30%, rgba(76, 29, 149, 0.7) 0%, transparent 40%),
+                        radial-gradient(circle at 80% 70%, rgba(59, 130, 246, 0.6) 0%, transparent 40%),
+                        radial-gradient(circle at 50% 50%, rgba(139, 92, 246, 0.4) 0%, transparent 50%);
+            filter: blur(60px);
+            z-index: -1;
+            animation: gradientMove 15s ease infinite alternate;
+        }
+
+        @keyframes gradientMove {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.1); }
+        }
+
+        /* --- TOP BAR (MENU) --- */
+        .navbar-custom {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 50px; /* Bordes muy redondeados */
+            margin-top: 20px;
+            padding: 10px 30px;
+            width: 70%;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            color: #333 !important;
+            letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-link {
+            color: #555 !important;
+            font-weight: 500;
+            font-size: 0.95rem;
+            margin: 0 10px;
+            transition: color 0.3s;
+        }
+
+        .nav-link:hover {
+            color: #000 !important;
+        }
+
+        /* Botón Dorado CTA */
+        .btn-gold {
+            background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%);
+            border: none;
+            border-radius: 30px;
+            color: #333;
+            font-weight: 700;
+            padding: 8px 25px;
+            box-shadow: 0 4px 15px rgba(218, 165, 32, 0.4);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn-gold:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(218, 165, 32, 0.6);
+            color: #000;
+        }
+
+        /* --- DRAG & DROP ZONE (Glassmorphism) --- */
+        .glass-container {
+            width: 70%;
+            margin: 30px auto;
+        }
+
+        .upload-zone {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 20px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: #fff;
+            transform: scale(1.01);
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            color: #fff;
+            font-weight: 300;
+        }
+
+        /* Ocultar input file real */
+        #imageInput {
+            display: none;
+        }
+
+        /* --- RESULT EDITOR --- */
+        .editor-container {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .editor-header {
+            background: rgba(0,0,0,0.8);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .CodeMirror {
+            height: 600px !important;
+            font-size: 14px;
+            background: transparent !important;
+        }
+
+        /* Loading Overlay */
+        #loading {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            display: none; /* Flex cuando activo */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">
+        <div class="spinner-border text-light" style="width: 4rem; height: 4rem;" role="status"></div>
+        <h3 class="mt-4 text-white">Neural Analysis in Progress...</h3>
+        <p class="text-white-50">Extracting features, lighting, and anatomy.</p>
+    </div>
+
+    <nav class="navbar navbar-expand-lg navbar-custom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fa-solid fa-eye text-primary"></i> PLATFORM
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto">
+                    <li class="nav-item"><a class="nav-link" href="#">PLATFORM</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">PRICING</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#">ABOUT US</a></li>
+                </ul>
+                
+                <div class="d-flex align-items-center gap-3">
+                    <a href="#" class="text-dark"><i class="fa-solid fa-magnifying-glass"></i></a>
+                    
+                    <a href="#" class="nav-link text-dark" style="margin: 0;">LOGIN</a>
+                    
+                    <button class="btn btn-gold">PURCHASE PLUS</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="glass-container">
+        
+        {% if error %}
+        <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+            <strong>Error:</strong> {{ error }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endif %}
+
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+            {% csrf_token %}
+            <input type="file" id="imageInput" name="image" accept="image/*">
+            
+            <div class="upload-zone" id="dropZone">
+                <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                <h3 class="fw-bold">Drag & Drop your Image here</h3>
+                <p class="mb-0 text-white-50">or click to browse files</p>
+                <p id="fileName" class="mt-3 text-warning fw-bold d-none"></p>
+            </div>
+        </form>
+
+        <div class="editor-container fade-in">
+            <div class="editor-header">
+                <span class="text-white-50"><i class="fa-solid fa-code me-2"></i> JSON Analysis Result</span>
+                <button id="copyBtn" class="btn btn-sm btn-outline-light rounded-pill px-3">
+                    <i class="fa-regular fa-copy me-1"></i> Copy
+                </button>
+            </div>
+            <textarea id="jsonEditor" name="json_content">{% if json_result %}{{ json_result|safe }}{% else %}{
+  "system_status": "waiting_for_input",
+  "message": "Upload an image to start the deep forensic analysis..."
+}{% endif %}</textarea>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.5/mode/javascript/javascript.min.js"></script>
+
+    <script>
+        // --- 1. CONFIGURACIÓN DEL EDITOR ---
+        var editor = CodeMirror.fromTextArea(document.getElementById("jsonEditor"), {
+            lineNumbers: true,
+            mode: "application/json",
+            theme: "dracula",
+            matchBrackets: true,
+            autoCloseBrackets: true,
+            readOnly: false
+        });
+
+        // --- 2. DRAG & DROP LÓGICA ---
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('imageInput');
+        const form = document.getElementById('uploadForm');
+        const fileNameDisplay = document.getElementById('fileName');
+        const loadingScreen = document.getElementById('loading');
+
+        // Click en la zona abre el selector de archivos
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // Eventos de arrastre
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        // Efectos visuales al arrastrar
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        // Al soltar el archivo (DROP)
+        dropZone.addEventListener('drop', handleDrop, false);
+
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            handleFiles(files);
+        }
+
+        // Al seleccionar con click (INPUT CHANGE)
+        fileInput.addEventListener('change', function() {
+            handleFiles(this.files);
+        });
+
+        function handleFiles(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                
+                // Mostrar nombre del archivo
+                fileNameDisplay.textContent = "Selected: " + file.name;
+                fileNameDisplay.classList.remove('d-none');
+                
+                // Asignar archivo al input (si vino por drag & drop)
+                fileInput.files = files;
+
+                // --- AUTO SUBMIT (Opcional: enviar formulario automáticamente) ---
+                loadingScreen.style.display = 'flex'; // Mostrar loading
+                form.submit(); // Enviar formulario
+            }
+        }
+
+        // --- 3. BOTÓN COPIAR ---
+        document.getElementById('copyBtn').addEventListener('click', function() {
+            const content = editor.getValue();
+            navigator.clipboard.writeText(content).then(function() {
+                const btn = document.getElementById('copyBtn');
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Copied!';
+                btn.classList.remove('btn-outline-light');
+                btn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.add('btn-outline-light');
+                    btn.classList.remove('btn-success');
+                }, 2000);
+            });
+        });
+
+        // Si el formulario se envía manualmente (por si acaso)
+        form.addEventListener('submit', () => {
+            loadingScreen.style.display = 'flex';
+        });
+    </script>
+</body>
+</html>
